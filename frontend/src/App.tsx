@@ -1,6 +1,7 @@
-// src/App.tsx
+// frontend/src/App.tsx
 
 import { useState } from "react";
+import { apiGet } from "./api";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import cloudflareLogo from "./assets/Cloudflare_Logo.svg";
@@ -40,22 +41,22 @@ function App() {
 					count is {count}
 				</button>
 				<p>
-					Edit <code>src/App.tsx</code> and save to test HMR
+					Edit <code>frontend/src/App.tsx</code> and save to test HMR
 				</p>
 			</div>
 			<div className="card">
 				<button
 					onClick={() => {
-						fetch("/api/")
-							.then((res) => res.json() as Promise<{ name: string }>)
-							.then((data) => setName(data.name));
+						apiGet<{ name: string }>("/api/")
+							.then((data) => setName(data.name))
+							.catch((err) => setName(`error: ${err.message}`));
 					}}
 					aria-label="get name"
 				>
 					Name from API is: {name}
 				</button>
 				<p>
-					Edit <code>worker/index.ts</code> to change the name
+					Edit <code>backend/src/index.ts</code> to change the name
 				</p>
 			</div>
 			<p className="read-the-docs">Click on the logos to learn more</p>

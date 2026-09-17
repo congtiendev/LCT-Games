@@ -1,0 +1,16 @@
+{
+  "name": "@lct-games/api",
+  "description": "LCT Games backend - Hono on Cloudflare Workers",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "hono": "4.11.1"
+  }
+}

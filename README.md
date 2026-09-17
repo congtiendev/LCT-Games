@@ -1,76 +1,92 @@
 # LCT Games
 
-React + Hono chạy trên Cloudflare Workers.
+FE và BE là **hai Cloudflare Worker riêng biệt**, deploy độc lập.
 
-## Stack
-
-| Thành phần | Công nghệ |
-|---|---|
-| Frontend | React 19 + Vite 7 |
-| Backend | Hono 4 (Worker) |
-| Hosting | Cloudflare Workers + Static Assets |
-| Ngôn ngữ | TypeScript |
-
-Frontend và API chạy chung **một** Worker: static assets phục vụ SPA, request `/api/*` vào Hono.
+```
+lct-games-web.<subdomain>.workers.dev   ← FE (React, static assets)
+lct-games-api.<subdomain>.workers.dev   ← BE (Hono API)
+```
 
 ## Cấu trúc
 
 ```
-src/
-  react-app/     # React SPA (Vite)
-    main.tsx
-    App.tsx
-  worker/
-    index.ts     # Hono API — routes /api/*
-wrangler.json    # Cấu hình Worker
-vite.config.ts
+frontend/              # FE — React 19 + Vite 7
+├── src/
+│   ├── App.tsx
+│   ├── api.ts         # client gọi BE qua VITE_API_URL
+│   └── main.tsx
+├── index.html
+├── vite.config.ts
+├── wrangler.json      # Worker: lct-games-web (assets-only)
+└── package.json
+
+backend/               # BE — Hono 4
+├── src/index.ts       # routes /api/* + CORS
+├── wrangler.json      # Worker: lct-games-api
+└── package.json
+
+package.json           # npm workspaces
 ```
 
 ## Chạy local
 
+Cần **hai terminal**:
+
 ```bash
-npm install
-npm run dev          # http://localhost:5173
+npm run dev:api    # BE → http://localhost:8787
+npm run dev        # FE → http://localhost:5173
 ```
 
-Vite dev server chạy cả React lẫn Worker qua `@cloudflare/vite-plugin`, nên gọi `/api/` ở local hoạt động y như trên production.
+FE đọc địa chỉ BE từ `VITE_API_URL`, mặc định `http://localhost:8787`. Muốn đổi thì copy `frontend/.env.example` thành `frontend/.env`.
 
 ## Lệnh
 
 | Lệnh | Việc |
 |---|---|
-| `npm run dev` | Dev server |
-| `npm run build` | Build ra `dist/` |
-| `npm run check` | Typecheck + build + `wrangler deploy --dry-run` |
-| `npm run deploy` | Deploy thủ công lên Cloudflare |
+| `npm run dev` | FE dev server |
+| `npm run dev:api` | BE dev server |
+| `npm run build` | Build FE ra `frontend/dist` |
+| `npm run check` | Typecheck + build + dry-run cả hai Worker |
+| `npm run deploy` | Deploy cả hai Worker |
+| `npm run deploy:web` | Chỉ deploy FE |
+| `npm run deploy:api` | Chỉ deploy BE |
 | `npm run lint` | ESLint |
-| `npm run cf-typegen` | Sinh lại types cho bindings |
 
-## Deploy
+## CORS
 
-Deploy tự động khi push lên `main` (Cloudflare Workers Builds, xem phần cài đặt bên dưới).
+Vì FE và BE khác origin, BE bắt buộc bật CORS. Danh sách origin được phép nằm ở `CORS_ORIGIN` trong [backend/wrangler.json](backend/wrangler.json), nhiều origin thì ngăn cách bằng dấu phẩy:
 
-Deploy thủ công:
-
-```bash
-npx wrangler login
-npm run deploy
+```json
+"vars": {
+  "CORS_ORIGIN": "https://lct-games-web.<subdomain>.workers.dev,http://localhost:5173"
+}
 ```
+
+Sau khi deploy FE lần đầu, **phải thêm URL thật của FE vào đây rồi deploy lại BE**, nếu không trình duyệt sẽ chặn mọi request.
+
+Preflight được cache 24h (`maxAge: 86400`) để trình duyệt không gửi `OPTIONS` trước mỗi request — giảm đáng kể số request tính vào quota.
 
 ## Thêm API route
 
 ```ts
-// src/worker/index.ts
+// backend/src/index.ts
 app.get("/api/games", (c) => c.json({ games: [] }));
+```
+
+Gọi từ FE:
+
+```ts
+import { apiGet } from "./api";
+const data = await apiGet<{ games: Game[] }>("/api/games");
 ```
 
 ## Thêm database
 
 ```bash
-npx wrangler d1 create lct-games-db
+cd backend && npx wrangler d1 create lct-games-db
 ```
 
-Rồi thêm binding vào `wrangler.json`:
+Thêm binding vào [backend/wrangler.json](backend/wrangler.json):
 
 ```json
 "d1_databases": [
@@ -78,4 +94,4 @@ Rồi thêm binding vào `wrangler.json`:
 ]
 ```
 
-Chạy `npm run cf-typegen` để cập nhật types, sau đó dùng `c.env.DB` trong Hono.
+Chạy `npm run cf-typegen -w backend` để cập nhật types, rồi dùng `c.env.DB`.

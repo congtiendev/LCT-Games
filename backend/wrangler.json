@@ -1,0 +1,16 @@
+{
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "lct-games-api",
+	"main": "./src/index.ts",
+	"compatibility_date": "2025-10-08",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"vars": {
+		"CORS_ORIGIN": "http://localhost:5173"
+	}
+}
